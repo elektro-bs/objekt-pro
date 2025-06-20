@@ -25,15 +25,13 @@ jobs:
           COMMIT_MSG=$(git log -1 --pretty=format:"%s")
           FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD)
           DIFF_INHALT=$(git diff HEAD^ HEAD)
-          PR_NUMBER=$(gh pr list --state open --limit 1 --json number -q '.[0].number') || true
-
           echo "Commit-Nachricht: $COMMIT_MSG"
           echo "Geänderte Dateien:\n$FILES_CHANGED"
 
-          python3 <<EOF
+          echo """
   import os
   import openai
-  from .github import Github
+  from github import Github
   
   openai.api_key = os.getenv("OPENAI_API_KEY")
   commit_msg = os.getenv("COMMIT_MSG")
@@ -41,7 +39,6 @@ jobs:
   diff_content = os.getenv("DIFF_INHALT")
   repo_name = os.getenv("GITHUB_REPOSITORY")
   token = os.getenv("GITHUB_TOKEN")
-  pr_number = os.getenv("PR_NUMBER")
 
 prompt = f"Commit-Nachricht: {commit_msg}\n\nGeänderte Dateien:\n{files_changed}\n\nCode-Änderungen:\n{diff_content}\n\nBitte fasse die Änderungen technisch sinnvoll zusammen, identifiziere mögliche Risiken oder Verbesserungsvorschläge und schreibe alles auf Deutsch."
   
@@ -53,7 +50,7 @@ prompt = f"Commit-Nachricht: {commit_msg}\n\nGeänderte Dateien:\n{files_changed
 ]
   )
   
-  zusammenfassung = antwort['choices'][0]['message']['content']
+  zusammenfassung = antwort["choices"][0]["message"]["content"]
   print("Antwort der KI:\n", zusammenfassung)
 
 with open("KI-Feedback.md", "w") as f:
@@ -64,8 +61,7 @@ with open("KI-Feedback.md", "w") as f:
   f.write(diff_content[:3000])
   f.write("\n\n**ChatGPT-Analyse:**\n\n")
   f.write(zusammenfassung)
-
-# Changelog aktualisieren
+  
   changelog_text = f"\n\n## {commit_msg}\n\n{zusammenfassung}\n"
 if os.path.exists("CHANGELOG.md"):
   with open("CHANGELOG.md", "r", encoding="utf-8") as changelog:
@@ -76,18 +72,20 @@ else:
 with open("CHANGELOG.md", "w", encoding="utf-8") as changelog:
   changelog.write(existing.strip() + changelog_text)
 
-# Optional: PR-Kommentar hinterlassen
-if pr_number:
-  .github = Github(token)
-  repo = .github.get_repo(repo_name)
-  pr = repo.get_pull(int(pr_number))
-  pr.create_issue_comment("🤖 Automatisierte KI-Zusammenfassung:\n\n" + zusammenfassung)
-  EOF
-
-- name: 📤 Feedback-Dateien ins Repository hochladen
-  run: |
-    git config --global user.name "github-actions[bot]"
-    git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    git add KI-Feedback.md CHANGELOG.md
-    git commit -m "🤖 KI-Zusammenfassung, PR-Kommentar & Changelog aktualisiert"
-    git push
+try:
+  github = Github(token)
+  repo = github.get_repo(repo_name)
+  pulls = repo.get_pulls(state="open")
+  for pr in pulls:
+    pr.create_issue_comment("🤖 Automatisierte KI-Zusammenfassung:\n\n" + zusammenfassung)
+except Exception as e:
+  print("Kein PR-Kommentar möglich oder Fehler: ", e)
+""" | python3
+                                                  
+                                                  - name: 📤 Feedback-Dateien ins Repository hochladen
+                                                  run: |
+                                                  git config --global user.name "github-actions[bot]"
+                                                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+                                                  git add KI-Feedback.md CHANGELOG.md
+                                                  git commit -m "🤖 KI-Zusammenfassung, PR-Kommentar & Changelog aktualisiert"
+                                                  git push
