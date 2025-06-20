@@ -1,11 +1,16 @@
 // src/App.jsx
 import React from 'react';
-import LoginPage from './pages/LoginPage';
+import LoginForm from './components/LoginForm';
 
 function App() {
+    const handleLogin = (data) => {
+        console.log("Login erfolgreich:", data);
+        // hier z. B. Token speichern oder Redirect machen
+    };
+
     return (
         <div>
-            <LoginPage />
+            <LoginForm onLogin={handleLogin} />
         </div>
     );
 }

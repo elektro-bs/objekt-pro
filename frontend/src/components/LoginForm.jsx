@@ -1,4 +1,3 @@
-// src/components/LoginForm.jsx
 import React, { useState } from 'react';
 
 export default function LoginForm({ onLogin }) {
@@ -23,7 +22,7 @@ export default function LoginForm({ onLogin }) {
 
             const data = await response.json();
             setStatus('success');
-            onLogin(data); // z. B. speichere Token oder leite weiter
+            onLogin(data);
         } catch (err) {
             console.error(err);
             setStatus('error');
